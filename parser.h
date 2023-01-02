@@ -63,7 +63,10 @@ INI_Object ini_decode(const std::string &str) {
     for (auto &&i : vec) {
         if (i[0] == ';')
             continue; // 注释
-        if (!para.empty() && i.find('=') != std::string::npos) {
+        if (i[0] == '[' && i[i.length() - 1] == ']') {
+            para = i.substr(1, i.length() - 2); // para
+            tmp[para] = std::map<std::string, std::string>();
+        } else {
             size_t f = i.find('=');
             if (f == std::string::npos) {
                 tmp[para][i] = "";
@@ -73,8 +76,6 @@ INI_Object ini_decode(const std::string &str) {
             }
             continue;
         }
-        if (i[0] == '[' && i[i.length() - 1] == ']')
-            para = i.substr(1, i.length() - 2); // para
     }
     return tmp; // return final ini
 }

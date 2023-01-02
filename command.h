@@ -14,9 +14,8 @@ typedef class Parser {
   public:
     Parser() {}
     void execute(const std::string &command, UI *ui, Editor *editor) const {
-        const size_t idx = command.find_first_of(' ');
-        std::string name;
-        std::string arg;
+        size_t idx = command.find_first_of(' ');
+        std::string name, arg;
         if (idx == std::string::npos) {
             name = command;
             arg = "";
@@ -27,9 +26,8 @@ typedef class Parser {
         if (cmd.find(name) != cmd.cend() && cmd.at(name)) {
             return cmd.at(name)(arg, ui, editor);
         }
-        if (default_command) {
+        if (default_command)
             return default_command(command, ui, editor);
-        }
     }
     void set_default(const Command &fn) { default_command = fn; }
     void set(const std::string &name, const Command &fn) { cmd[name] = fn; }

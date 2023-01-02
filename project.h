@@ -18,6 +18,7 @@ typedef struct Note {
     std::string PBY;
     std::string PBM;
     std::string VBR;
+    std::string Label;
 
     std::string Lyric;
 
@@ -96,6 +97,8 @@ typedef struct Project {
                 ret[strid]["Envelope"] = note.Envelope;
             if (!note.PBY.empty())
                 ret[strid]["PBY"] = note.PBY;
+            if (!note.Label.empty())
+                ret[strid]["Label"] = note.Label;
             if (note.Tempo != tempo)
                 ret[strid]["Tempo"] = std::to_string(note.Tempo);
             id++;
@@ -155,22 +158,22 @@ Value defaultval(const std::map<Key, Value> &m, const Key &key,
  */
 Project parse(const INI_Object &obj) {
     Project tmp{};
+    for (auto &&j : obj.at("#VERSION")) {
+        tmp.version = j.first; // 因为 VERSION 是 key
+    }
+    tmp.tempo = std::stod(obj.at("#SETTING").at("Tempo"));
+    tmp.project_name = obj.at("#SETTING").at("ProjectName");
+    tmp.voice_dir = obj.at("#SETTING").at("VoiceDir");
+    tmp.cache_dir = obj.at("#SETTING").at("CacheDir");
+    tmp.out_file = obj.at("#SETTING").at("OutFile");
+    tmp.tool1 = obj.at("#SETTING").at("Tool1");
+    tmp.tool2 = obj.at("#SETTING").at("Tool2");
+    tmp.mode2 = (obj.at("#SETTING").at("Mode2") == "True");
+    tmp.global_flags =
+        defaultval(obj.at("#SETTING"), std::string("Flags")); // ??
     for (auto &&i : obj) {
-        if (i.first == "#VERSION") {
-            for (auto &&j : i.second) {
-                tmp.version = j.first; // 因为 VERSION 是 key
-            }
-        } else if (i.first == "#SETTING") {
-            tmp.tempo = std::stod(i.second.at("Tempo"));
-            tmp.project_name = i.second.at("ProjectName");
-            tmp.voice_dir = i.second.at("VoiceDir");
-            tmp.cache_dir = i.second.at("CacheDir");
-            tmp.out_file = i.second.at("OutFile");
-            tmp.tool1 = i.second.at("Tool1");
-            tmp.tool2 = i.second.at("Tool2");
-            tmp.mode2 = (i.second.at("Mode2") == "True");
-            tmp.global_flags = defaultval(i.second, std::string("Flags")); // ??
-        } else if (i.first.length() > 0 && i.first[0] == '#') {
+        if (i.first.length() > 0 && i.first[0] == '#' &&
+            i.first != "#TRACKEND" && i.first != "#VERSION" && i.first != "#SETTING") {
             size_t sz = std::stoi(i.first.substr(1));
             tmp.notes.resize(sz + 1);
             tmp.notes[sz].Length = std::stoi(i.second.at("Length"));
@@ -206,9 +209,9 @@ Project parse(const INI_Object &obj) {
             tmp.notes[sz].PBY = defaultval(i.second, std::string("PBY"));
             tmp.notes[sz].PBM = defaultval(i.second, std::string("PBM"));
             tmp.notes[sz].VBR = defaultval(i.second, std::string("VBR"));
+            tmp.notes[sz].Label = defaultval(i.second, std::string("Label"));
         }
     }
-
     return tmp;
 }
 
