@@ -18,8 +18,7 @@ std::vector<std::string> splitBy_noparse(const std::string &line, char delim) {
         } else
             tmp += i;
     }
-    if (!tmp.empty())
-        ret.push_back(tmp);
+    if (!tmp.empty()) ret.push_back(tmp);
     return ret;
 }
 std::vector<std::string> splitBy(const std::string &line, char delim) {
@@ -31,11 +30,9 @@ std::vector<std::string> splitBy(const std::string &line, char delim) {
         if (i == '\\')
             z = !z;
         else if (i == '\"' && !z) {
-            if (a == 0 || a == 1)
-                a = (a == 0 ? 1 : 0);
+            if (a == 0 || a == 1) a = (a == 0 ? 1 : 0);
         } else if (i == '\'' && !z) {
-            if (a == 0 || a == 2)
-                a = (a == 0 ? 2 : 0);
+            if (a == 0 || a == 2) a = (a == 0 ? 2 : 0);
         } else
             z = false;
         if ((i == L'(' || i == L'{' || i == L'[') && a == 0)
@@ -49,8 +46,7 @@ std::vector<std::string> splitBy(const std::string &line, char delim) {
         } else
             tmp += i;
     }
-    if (!tmp.empty())
-        ret.push_back(tmp);
+    if (!tmp.empty()) ret.push_back(tmp);
     return ret;
 }
 
@@ -61,30 +57,28 @@ INI_Object ini_decode(const std::string &str) {
     std::string key;
     std::vector<std::string> vec = splitBy_noparse(str, '\n');
     for (auto &&i : vec) {
-        if (i[0] == ';')
-            continue; // 注释
+        if (i[0] == ';') continue;  // 注释
         if (i[0] == '[' && i[i.length() - 1] == ']') {
-            para = i.substr(1, i.length() - 2); // para
+            para = i.substr(1, i.length() - 2);  // para
             tmp[para] = std::map<std::string, std::string>();
         } else {
             size_t f = i.find('=');
             if (f == std::string::npos) {
                 tmp[para][i] = "";
             } else {
-                key = i.substr(0, f);             // 设置key
-                tmp[para][key] = i.substr(f + 1); // 在指定段落取得 value
+                key = i.substr(0, f);              // 设置key
+                tmp[para][key] = i.substr(f + 1);  // 在指定段落取得 value
             }
             continue;
         }
     }
-    return tmp; // return final ini
+    return tmp;  // return final ini
 }
 
 std::string ini_encode(const INI_Object &obj) {
     std::string tmp = "[#VERSION]\nUST Version1.2\n";
     for (auto &&it : obj) {
-        if (it.first == "VERSION")
-            continue;
+        if (it.first == "VERSION") continue;
         tmp += "[" + it.first + "]\n";
         for (auto &&it2 : it.second) {
             tmp += it2.first + "=" + it2.second + "\n";

@@ -1,9 +1,10 @@
 #ifndef _PROJECT_H_
 #define _PROJECT_H_
 
-#include "parser.h"
 #include <iostream>
 #include <string>
+
+#include "parser.h"
 
 typedef struct Note {
     std::string VoiceOverlap;
@@ -32,11 +33,14 @@ typedef struct Note {
     int Length;
     int Tempo;
 
-    bool matched;
-
     Note()
-        : Velocity(100), Intensity(100), Modulation(0), StartPoint(0),
-          NoteNum(0), Length(480), Tempo(120), matched(false) {}
+        : Velocity(100),
+          Intensity(100),
+          Modulation(0),
+          StartPoint(0),
+          NoteNum(0),
+          Length(480),
+          Tempo(120) {}
 } Note;
 
 typedef struct Project {
@@ -49,6 +53,7 @@ typedef struct Project {
     std::string tool1;
     std::string tool2;
     std::string global_flags;
+
     double tempo;
     bool mode2;
     /**
@@ -79,26 +84,19 @@ typedef struct Project {
             ret[strid]["Velocity"] = std::to_string(note.Velocity);
             ret[strid]["Intensity"] = std::to_string(note.Intensity);
             ret[strid]["Modulation"] = std::to_string(note.Modulation);
-            if (!note.PBType.empty())
-                ret[strid]["PBType"] = note.PBType;
+            if (!note.Flags.empty()) ret[strid]["Flags"] = note.Flags;
+            if (!note.PBType.empty()) ret[strid]["PBType"] = note.PBType;
             if (!note.PitchBend.empty())
                 ret[strid]["PitchBend"] = note.PitchBend;
             if (note.StartPoint != 0)
                 ret[strid]["StartPoint"] = std::to_string(note.StartPoint);
-            if (!note.PBW.empty())
-                ret[strid]["PBW"] = note.PBW;
-            if (!note.PBS.empty())
-                ret[strid]["PBS"] = note.PBS;
-            if (!note.VBR.empty())
-                ret[strid]["VBR"] = note.VBR;
-            if (!note.PBStart.empty())
-                ret[strid]["PBStart"] = note.PBStart;
-            if (!note.Envelope.empty())
-                ret[strid]["Envelope"] = note.Envelope;
-            if (!note.PBY.empty())
-                ret[strid]["PBY"] = note.PBY;
-            if (!note.Label.empty())
-                ret[strid]["Label"] = note.Label;
+            if (!note.PBW.empty()) ret[strid]["PBW"] = note.PBW;
+            if (!note.PBS.empty()) ret[strid]["PBS"] = note.PBS;
+            if (!note.VBR.empty()) ret[strid]["VBR"] = note.VBR;
+            if (!note.PBStart.empty()) ret[strid]["PBStart"] = note.PBStart;
+            if (!note.Envelope.empty()) ret[strid]["Envelope"] = note.Envelope;
+            if (!note.PBY.empty()) ret[strid]["PBY"] = note.PBY;
+            if (!note.Label.empty()) ret[strid]["Label"] = note.Label;
             if (note.Tempo != tempo)
                 ret[strid]["Tempo"] = std::to_string(note.Tempo);
             id++;
@@ -114,9 +112,9 @@ typedef struct Project {
         std::string raw = ini_encode(build());
         return "[#VERSION]\n" + version + "\n" + raw + "\n[#TRACKEND]\n";
     }
-    Project() : tempo(120.0f), mode2(true) {}
+    Project() : project_name("New Project"), tempo(120.0f), mode2(true) {}
 
-  private:
+   private:
     /**
      * @brief 获得 id 对应的 Track
      *
@@ -125,8 +123,7 @@ typedef struct Project {
      */
     static std::string get_id(size_t id) noexcept {
         std::string tmp = std::to_string(id);
-        while (tmp.length() < 4)
-            tmp.insert(0, "0");
+        while (tmp.length() < 4) tmp.insert(0, "0");
         return "#" + tmp;
     }
 } Project;
@@ -159,7 +156,7 @@ Value defaultval(const std::map<Key, Value> &m, const Key &key,
 Project parse(const INI_Object &obj) {
     Project tmp{};
     for (auto &&j : obj.at("#VERSION")) {
-        tmp.version = j.first; // 因为 VERSION 是 key
+        tmp.version = j.first;  // 因为 VERSION 是 key
     }
     tmp.tempo = std::stod(obj.at("#SETTING").at("Tempo"));
     tmp.project_name = obj.at("#SETTING").at("ProjectName");
@@ -170,10 +167,11 @@ Project parse(const INI_Object &obj) {
     tmp.tool2 = obj.at("#SETTING").at("Tool2");
     tmp.mode2 = (obj.at("#SETTING").at("Mode2") == "True");
     tmp.global_flags =
-        defaultval(obj.at("#SETTING"), std::string("Flags")); // ??
+        defaultval(obj.at("#SETTING"), std::string("Flags"));  // ??
     for (auto &&i : obj) {
         if (i.first.length() > 0 && i.first[0] == '#' &&
-            i.first != "#TRACKEND" && i.first != "#VERSION" && i.first != "#SETTING") {
+            i.first != "#TRACKEND" && i.first != "#VERSION" &&
+            i.first != "#SETTING") {
             size_t sz = std::stoi(i.first.substr(1));
             tmp.notes.resize(sz + 1);
             tmp.notes[sz].Length = std::stoi(i.second.at("Length"));
@@ -186,7 +184,7 @@ Project parse(const INI_Object &obj) {
                 i.second, std::string("Velocity"), std::string("100")));
             tmp.notes[sz].Intensity =
                 std::stoi(defaultval(i.second, std::string("Intensity"),
-                                     std::string("100"))); // 这里
+                                     std::string("100")));  // 这里
             tmp.notes[sz].Modulation = std::stoi(defaultval(
                 i.second, std::string("Modulation"), std::string("0")));
             tmp.notes[sz].StartPoint = std::stoi(defaultval(

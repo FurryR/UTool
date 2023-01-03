@@ -37,18 +37,18 @@ typedef class Screen {
         return pos.x < _size.x && pos.y < _size.y;
     }
 
-  public:
+   public:
     Screen(const Coord &size)
         : current(std::vector<std::vector<Character>>(
               size.y, std::vector<Character>(size.x))),
           buffer(std::vector<std::vector<Character>>(
               size.y, std::vector<Character>(size.x))),
-          _size(size), dirty(false) {
+          _size(size),
+          dirty(false) {
         _init();
     }
     void show() {
-        if (!dirty)
-            return;
+        if (!dirty) return;
         bool flag = true;
         bool flag2 = false;
         std::string str = "";
@@ -96,8 +96,7 @@ typedef class Screen {
         }
     }
     bool set(const Coord &pos, const Character &chr) {
-        if (!_test(pos))
-            return false;
+        if (!_test(pos)) return false;
         if (current[pos.y][pos.x] != chr) {
             dirty = true;
             current[pos.y][pos.x] = chr;

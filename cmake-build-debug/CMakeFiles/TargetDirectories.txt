@@ -1,3 +1,0 @@
-C:/Users/18066/Desktop/BUG/UTool/cmake-build-debug/CMakeFiles/UTool.dir
-C:/Users/18066/Desktop/BUG/UTool/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/18066/Desktop/BUG/UTool/cmake-build-debug/CMakeFiles/rebuild_cache.dir
