@@ -5,7 +5,25 @@
 #include <string>
 
 #include "parser.h"
-
+/**
+ * @brief 实用工具。用于 std::map 默认值。
+ *
+ * @tparam Key 键的类型。
+ * @tparam Value 值的类型。
+ * @param m std::map 对象。
+ * @param key 键。
+ * @param def 不存在时的替代值。默认为默认构造参数。
+ * @return Value 存在时返回值，否则返回替代值。
+ */
+template <typename Key, typename Value>
+Value defaultval(const std::map<Key, Value> &m, const Key &key,
+                 const Value &def = Value()) {
+    try {
+        return m.at(key);
+    } catch (...) {
+        return def;
+    }
+}
 typedef struct Note {
     std::string VoiceOverlap;
     std::string Flags;
@@ -61,8 +79,8 @@ typedef struct Project {
      *
      * @return INI_Object 不含 Version 的 INI_Object
      */
-    INI_Object build() const {
-        INI_Object ret;
+    INI::Object build() const {
+        INI::Object ret;
         size_t id = 0;
         ret["#SETTING"]["Tempo"] = std::to_string(tempo);
         ret["#SETTING"]["Tracks"] = "1";
@@ -109,8 +127,77 @@ typedef struct Project {
      * @return std::string INI 格式的字符串
      */
     std::string to_string() const {
-        std::string raw = ini_encode(build());
-        return "[#VERSION]\n" + version + "\n" + raw + "\n[#TRACKEND]\n";
+        return "[#VERSION]\n" + version + "\n" + INI::stringify(build()) +
+               "\n[#TRACKEND]\n";
+    }
+    /**
+     * @brief 将 INI_Object 转换为 Project 实例。
+     *
+     * @param obj INI_Object INI 对象
+     * @return Project Project 实例。
+     * @throw 任意的 std::exception 当解析发生错误
+     */
+    static Project parse(const INI::Object &obj) {
+        Project tmp{};
+        for (auto &&j : obj.at("#VERSION")) {
+            tmp.version = j.first;  // 因为 VERSION 是 key
+        }
+        tmp.tempo = std::stod(obj.at("#SETTING").at("Tempo"));
+        tmp.project_name = obj.at("#SETTING").at("ProjectName");
+        tmp.voice_dir = obj.at("#SETTING").at("VoiceDir");
+        tmp.cache_dir = obj.at("#SETTING").at("CacheDir");
+        tmp.out_file = obj.at("#SETTING").at("OutFile");
+        tmp.tool1 = obj.at("#SETTING").at("Tool1");
+        tmp.tool2 = obj.at("#SETTING").at("Tool2");
+        tmp.mode2 = (obj.at("#SETTING").at("Mode2") == "True");
+        tmp.global_flags =
+            defaultval(obj.at("#SETTING"), std::string("Flags"));  // ??
+        for (auto &&i : obj) {
+            if (i.first.length() > 0 && i.first[0] == '#' &&
+                i.first != "#TRACKEND" && i.first != "#VERSION" &&
+                i.first != "#SETTING") {
+                size_t sz = std::stoi(i.first.substr(1));
+                tmp.notes.resize(sz + 1);
+                tmp.notes[sz].Length = std::stoi(i.second.at("Length"));
+                tmp.notes[sz].Lyric = i.second.at("Lyric");
+                tmp.notes[sz].NoteNum = std::stoi(i.second.at("NoteNum"));
+                tmp.notes[sz].PreUtterance =
+                    defaultval(i.second, std::string("PreUtterance"));
+
+                tmp.notes[sz].Velocity = std::stoi(defaultval(
+                    i.second, std::string("Velocity"), std::string("100")));
+                tmp.notes[sz].Intensity =
+                    std::stoi(defaultval(i.second, std::string("Intensity"),
+                                         std::string("100")));  // 这里
+                tmp.notes[sz].Modulation = std::stoi(defaultval(
+                    i.second, std::string("Modulation"), std::string("0")));
+                tmp.notes[sz].StartPoint = std::stoi(defaultval(
+                    i.second, std::string("StartPoint"), std::string("0")));
+                tmp.notes[sz].Tempo = std::stoi(defaultval(
+                    i.second, std::string("Tempo"), std::to_string(tmp.tempo)));
+                tmp.notes[sz].VoiceOverlap =
+                    defaultval(i.second, std::string("VoiceOverlap"));
+                tmp.notes[sz].Flags =
+                    defaultval(i.second, std::string("Flags"));
+                tmp.notes[sz].Envelope =
+                    defaultval(i.second, std::string("Envelope"));
+
+                tmp.notes[sz].PBType =
+                    defaultval(i.second, std::string("PBType"));
+                tmp.notes[sz].PitchBend =
+                    defaultval(i.second, std::string("PitchBend"));
+                tmp.notes[sz].PBStart =
+                    defaultval(i.second, std::string("PBStart"));
+                tmp.notes[sz].PBS = defaultval(i.second, std::string("PBS"));
+                tmp.notes[sz].PBW = defaultval(i.second, std::string("PBW"));
+                tmp.notes[sz].PBY = defaultval(i.second, std::string("PBY"));
+                tmp.notes[sz].PBM = defaultval(i.second, std::string("PBM"));
+                tmp.notes[sz].VBR = defaultval(i.second, std::string("VBR"));
+                tmp.notes[sz].Label =
+                    defaultval(i.second, std::string("Label"));
+            }
+        }
+        return tmp;
     }
     Project() : project_name("New Project"), tempo(120.0f), mode2(true) {}
 
@@ -127,90 +214,4 @@ typedef struct Project {
         return "#" + tmp;
     }
 } Project;
-/**
- * @brief 实用工具。用于 std::map 默认值。
- *
- * @tparam Key 键的类型。
- * @tparam Value 值的类型。
- * @param m std::map 对象。
- * @param key 键。
- * @param def 不存在时的替代值。默认为默认构造参数。
- * @return Value 存在时返回值，否则返回替代值。
- */
-template <typename Key, typename Value>
-Value defaultval(const std::map<Key, Value> &m, const Key &key,
-                 const Value &def = Value()) {
-    try {
-        return m.at(key);
-    } catch (...) {
-        return def;
-    }
-}
-/**
- * @brief 将 INI_Object 转换为 Project 实例。
- *
- * @param obj INI_Object INI 对象
- * @return Project Project 实例。
- * @throw 任意的 std::exception 当解析发生错误
- */
-Project parse(const INI_Object &obj) {
-    Project tmp{};
-    for (auto &&j : obj.at("#VERSION")) {
-        tmp.version = j.first;  // 因为 VERSION 是 key
-    }
-    tmp.tempo = std::stod(obj.at("#SETTING").at("Tempo"));
-    tmp.project_name = obj.at("#SETTING").at("ProjectName");
-    tmp.voice_dir = obj.at("#SETTING").at("VoiceDir");
-    tmp.cache_dir = obj.at("#SETTING").at("CacheDir");
-    tmp.out_file = obj.at("#SETTING").at("OutFile");
-    tmp.tool1 = obj.at("#SETTING").at("Tool1");
-    tmp.tool2 = obj.at("#SETTING").at("Tool2");
-    tmp.mode2 = (obj.at("#SETTING").at("Mode2") == "True");
-    tmp.global_flags =
-        defaultval(obj.at("#SETTING"), std::string("Flags"));  // ??
-    for (auto &&i : obj) {
-        if (i.first.length() > 0 && i.first[0] == '#' &&
-            i.first != "#TRACKEND" && i.first != "#VERSION" &&
-            i.first != "#SETTING") {
-            size_t sz = std::stoi(i.first.substr(1));
-            tmp.notes.resize(sz + 1);
-            tmp.notes[sz].Length = std::stoi(i.second.at("Length"));
-            tmp.notes[sz].Lyric = i.second.at("Lyric");
-            tmp.notes[sz].NoteNum = std::stoi(i.second.at("NoteNum"));
-            tmp.notes[sz].PreUtterance =
-                defaultval(i.second, std::string("PreUtterance"));
-
-            tmp.notes[sz].Velocity = std::stoi(defaultval(
-                i.second, std::string("Velocity"), std::string("100")));
-            tmp.notes[sz].Intensity =
-                std::stoi(defaultval(i.second, std::string("Intensity"),
-                                     std::string("100")));  // 这里
-            tmp.notes[sz].Modulation = std::stoi(defaultval(
-                i.second, std::string("Modulation"), std::string("0")));
-            tmp.notes[sz].StartPoint = std::stoi(defaultval(
-                i.second, std::string("StartPoint"), std::string("0")));
-            tmp.notes[sz].Tempo = std::stoi(defaultval(
-                i.second, std::string("Tempo"), std::to_string(tmp.tempo)));
-            tmp.notes[sz].VoiceOverlap =
-                defaultval(i.second, std::string("VoiceOverlap"));
-            tmp.notes[sz].Flags = defaultval(i.second, std::string("Flags"));
-            tmp.notes[sz].Envelope =
-                defaultval(i.second, std::string("Envelope"));
-
-            tmp.notes[sz].PBType = defaultval(i.second, std::string("PBType"));
-            tmp.notes[sz].PitchBend =
-                defaultval(i.second, std::string("PitchBend"));
-            tmp.notes[sz].PBStart =
-                defaultval(i.second, std::string("PBStart"));
-            tmp.notes[sz].PBS = defaultval(i.second, std::string("PBS"));
-            tmp.notes[sz].PBW = defaultval(i.second, std::string("PBW"));
-            tmp.notes[sz].PBY = defaultval(i.second, std::string("PBY"));
-            tmp.notes[sz].PBM = defaultval(i.second, std::string("PBM"));
-            tmp.notes[sz].VBR = defaultval(i.second, std::string("VBR"));
-            tmp.notes[sz].Label = defaultval(i.second, std::string("Label"));
-        }
-    }
-    return tmp;
-}
-
 #endif

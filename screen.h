@@ -66,7 +66,8 @@ typedef class Screen {
                                   << "H";
                         flag = false;
                     }
-                    if ((!flag2) && str != current[y][x].prefix) {
+                    // if ((!flag2) && str != current[y][x].prefix) {
+                    if (str != current[y][x].prefix) {
                         std::cout << "\x1b[0m";
                         str = current[y][x].prefix;
                         current[y][x].output(true);

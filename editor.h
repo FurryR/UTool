@@ -200,7 +200,7 @@ typedef struct UI {
                     ColorText(temp, (column == 0) ? hi_base : lyric_base));
         x += (16 - temp.length()) + 1;
         // 歌词(可能为空)
-        temp = note.Lyric.empty() ? " " : note.Lyric;
+        temp = note.Lyric.empty() ? "  " : note.Lyric;
         render_text(
             &x, y,
             ColorText(temp.length() >= 16 ? (temp.substr(0, 13) + "...") : temp,
@@ -224,7 +224,7 @@ typedef struct UI {
                     ColorText(temp, (column == 3) ? hi_base : lyric_base));
         x += (16 - temp.length()) + 1;
         // flags(可能为空)
-        temp = note.Flags.empty() ? " " : note.Flags;
+        temp = note.Flags.empty() ? "  " : note.Flags;
         render_text(
             &x, y,
             ColorText(temp.length() >= 16 ? (temp.substr(0, 13) + "...") : temp,
@@ -297,9 +297,21 @@ std::vector<Character> text_cursor(const std::string &str, size_t index) {
     if (index == str.length()) tmp.push_back(Character(0, "\x1b[47m"));
     return tmp;
 }
-
+typedef enum class ActionType {
+    InsertBefore = 0,
+    InsertAfter = 1,
+    Remove = 2,
+    Modify = 3,
+} ActionType;
+typedef struct Action {
+    std::string value;
+    size_t index;
+    ActionType action;
+    Action() = default;
+    Action(const ActionType &action, const std::string &value, size_t index)
+        : value(value), index(index), action(action) {}
+};
 typedef struct Editor {
-    Project project;
     size_t count;
     size_t column;
 
@@ -309,7 +321,7 @@ typedef struct Editor {
      * @param p Project 实例
      */
     void load(const Project &p) {
-        project = p;
+        _project = p;
         _dirty = false;
         count = 0;
     }
@@ -326,7 +338,7 @@ typedef struct Editor {
         std::string raw = std::string(std::istreambuf_iterator<char>(f),
                                       std::istreambuf_iterator<char>());
         f.close();
-        load(parse(ini_decode(raw)));
+        load(Project::parse(INI::parse(raw)));
         _path = filename;
         return true;
     }
@@ -342,7 +354,7 @@ typedef struct Editor {
         if (!f) {
             return false;
         }
-        f << project.to_string();
+        f << project().to_string();
         f.close();
         _path = filename;
         _dirty = false;
@@ -368,7 +380,7 @@ typedef struct Editor {
                     }
                     case 80: {
                         // 下一个音符
-                        if (count < project.notes.size() - 1) count++;
+                        if (count < project().notes.size() - 1) count++;
                         break;
                     }
                     case 75: {
@@ -398,10 +410,10 @@ typedef struct Editor {
                     case 81: {
                         // PageDown（下一页）
                         if (count + (ui->size().y - 3) <
-                            project.notes.size() - 1) {
+                            project().notes.size() - 1) {
                             count += ui->size().y - 3;
                         } else {
-                            count = project.notes.size() - 1;
+                            count = project().notes.size() - 1;
                         }
                         break;
                     }
@@ -437,12 +449,11 @@ typedef struct Editor {
                 remove_note();
                 break;
             }
-            // case 'I':
-            // case 'i': {
-            case '\r': {
+            case 'I':
+            case 'i': {
                 // 编辑当前单元格
-                if (count < project.notes.size()) {
-                    std::string tmp = note_str(project.notes[count], column);
+                if (count < _project.notes.size()) {
+                    std::string tmp = note_str(_project.notes[count], column);
                     size_t cursor = tmp.length();
                     int key;
                     // somewhat looks like a cursor
@@ -463,9 +474,10 @@ typedef struct Editor {
                                         if (_show_actual_notenum) {
                                             size_t note = get_note_num(tmp);
                                             if (!note) throw nullptr;
-                                            project.notes[count].NoteNum = note;
+                                            _project.notes[count].NoteNum =
+                                                note;
                                         } else
-                                            project.notes[count].NoteNum =
+                                            _project.notes[count].NoteNum =
                                                 std::stoi(tmp);
                                     } catch (...) {
                                         t = ColorText(" -> ",
@@ -485,13 +497,13 @@ typedef struct Editor {
                                 }
                                 case 1: {
                                     // 歌词的修改
-                                    project.notes[count].Lyric = tmp;
+                                    _project.notes[count].Lyric = tmp;
                                     break;
                                 }
                                 case 2: {
                                     // 长度的修改(Tick based)
                                     try {
-                                        project.notes[count].Length =
+                                        _project.notes[count].Length =
                                             std::stoi(tmp);
                                     } catch (...) {
                                         t = ColorText(" -> ",
@@ -512,7 +524,7 @@ typedef struct Editor {
                                 case 3: {
                                     // 子音速度修改
                                     try {
-                                        project.notes[count].Velocity =
+                                        _project.notes[count].Velocity =
                                             std::stoi(tmp);
                                     } catch (...) {
                                         t = ColorText(" -> ",
@@ -532,7 +544,7 @@ typedef struct Editor {
                                 }
                                 case 4: {
                                     // flags 的修改
-                                    project.notes[count].Flags = tmp;
+                                    _project.notes[count].Flags = tmp;
                                     break;
                                 }
                             }
@@ -541,7 +553,7 @@ typedef struct Editor {
                         } else if (key == '\x1b') {
                             break;
                         } else if (key == '\b') {
-                            if (tmp.length() > 0) {
+                            if (cursor > 0) {
                                 tmp = tmp.substr(0, cursor - 1) +
                                       tmp.substr(cursor);
                                 cursor--;
@@ -584,11 +596,11 @@ typedef struct Editor {
      * @return size_t 页数。
      */
     size_t page_count(UI *ui) const noexcept {
-        if (project.notes.size() % (ui->size().y - 3) == 0 &&
-            !project.notes.empty())
-            return project.notes.size() / (ui->size().y - 3);
+        if (_project.notes.size() % (ui->size().y - 3) == 0 &&
+            !_project.notes.empty())
+            return _project.notes.size() / (ui->size().y - 3);
         else
-            return project.notes.size() / (ui->size().y - 3) + 1;
+            return _project.notes.size() / (ui->size().y - 3) + 1;
     }
     /**
      * @brief 获得路径
@@ -607,23 +619,24 @@ typedef struct Editor {
         // 我们需要根据当前选择的位置计算出页面
         // page = (size_t)(count / (ui->size().y - 3));
         // 一定是正整数的情况下，就用 size_t 或者 unsigned int 吧。k
-        ui->render_bar(project, (size_t)(count / (ui->size().y - 3)),
+        ui->render_bar(_project, (size_t)(count / (ui->size().y - 3)),
                        page_count(ui), dirty());
         size_t y;
         size_t i = (size_t)(count / (ui->size().y - 3)) *
                    (ui->size().y - 3);  // 是这样写吗？?
         // 去写一下高亮看看？how
-        for (y = 2; y < ui->size().y - 1 && i < project.notes.size();
+        for (y = 2; y < ui->size().y - 1 && i < _project.notes.size();
              y++, i++) {
-            ui->render_note(project.notes[i], i, y, column, project.tempo,
+            ui->render_note(_project.notes[i], i, y, column, _project.tempo,
                             _show_sec, _show_actual_notenum, i == count);
         }
         std::vector<Character> t =
             ColorText(" -> ", "\x1b[47m\x1b[30m").output();
         t.push_back(Character(0));
         std::vector<Character> tmp =
-            count < project.notes.size()
-                ? ColorText(note_str(project.notes[count], column), "").output()
+            count < _project.notes.size()
+                ? ColorText(note_str(_project.notes[count], column), "")
+                      .output()
                 : ColorText("n/a", "\x1b[31m").output();
         t.insert(t.cend(), tmp.cbegin(), tmp.cend());
         ui->render_log(t);
@@ -636,6 +649,7 @@ typedef struct Editor {
      * @return false 文件未被更改
      */
     bool dirty() const noexcept { return _dirty; }
+    const Project &project() const noexcept { return _project; }
     Editor()
         : count(0),
           column(0),
@@ -644,6 +658,7 @@ typedef struct Editor {
           _dirty(false) {}
 
    private:
+    Project _project;
     std::string _path;
     bool _show_sec;
     bool _show_actual_notenum;
@@ -696,26 +711,26 @@ typedef struct Editor {
     }
 
     void remove_note() {
-        if (!project.notes.empty()) {
+        if (!_project.notes.empty()) {
             _dirty = true;
-            project.notes.erase(project.notes.cbegin() + count);
+            _project.notes.erase(_project.notes.cbegin() + count);
         }
         if (count > 0) count -= 1;
     }
     void insert_note_before() {
         _dirty = true;
-        project.notes.insert(project.notes.cbegin() + count, Note());
-        if (count < project.notes.size() - 1) {
+        _project.notes.insert(_project.notes.cbegin() + count, Note());
+        if (count < _project.notes.size() - 1) {
             count++;
         }
     }
     void insert_note_after() {
         _dirty = true;
-        if (project.notes.empty())
-            project.notes.insert(project.notes.cbegin() + count, Note());
+        if (_project.notes.empty())
+            _project.notes.insert(_project.notes.cbegin() + count, Note());
         else
-            project.notes.insert(project.notes.cbegin() + count + 1, Note());
-        if (count < project.notes.size() - 1) {
+            _project.notes.insert(_project.notes.cbegin() + count + 1, Note());
+        if (count < _project.notes.size() - 1) {
             count++;
         }
     }

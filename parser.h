@@ -49,10 +49,10 @@ std::vector<std::string> splitBy(const std::string &line, char delim) {
     if (!tmp.empty()) ret.push_back(tmp);
     return ret;
 }
-
-typedef std::map<std::string, std::map<std::string, std::string>> INI_Object;
-INI_Object ini_decode(const std::string &str) {
-    INI_Object tmp;
+namespace INI {
+typedef std::map<std::string, std::map<std::string, std::string>> Object;
+Object parse(const std::string &str) {
+    Object tmp;
     std::string para;
     std::string key;
     std::vector<std::string> vec = splitBy_noparse(str, '\n');
@@ -75,16 +75,15 @@ INI_Object ini_decode(const std::string &str) {
     return tmp;  // return final ini
 }
 
-std::string ini_encode(const INI_Object &obj) {
-    std::string tmp = "[#VERSION]\nUST Version1.2\n";
+std::string stringify(const Object &obj) {
+    std::string tmp = "";
     for (auto &&it : obj) {
-        if (it.first == "VERSION") continue;
         tmp += "[" + it.first + "]\n";
         for (auto &&it2 : it.second) {
             tmp += it2.first + "=" + it2.second + "\n";
         }
     }
-    return tmp + "[#TRACKEND]\n";
+    return tmp;
 }
-
+}  // namespace INI
 #endif

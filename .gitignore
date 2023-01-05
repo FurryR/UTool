@@ -2,3 +2,4 @@
 cmake-build-debug/
 .clion/
 a.exe
+*.ust

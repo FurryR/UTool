@@ -55,7 +55,7 @@ void main_ui(Screen *screen) {
                 } else if (key == '\x1b') {
                     break;
                 } else if (key == '\b') {
-                    if (tmp.length() > 0) {
+                    if (cursor > 0) {
                         tmp = tmp.substr(0, cursor - 1) + tmp.substr(cursor);
                         cursor--;
                     }
