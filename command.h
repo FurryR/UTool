@@ -6,15 +6,16 @@
 
 #include "editor.h"
 
-// refresh(argument, UI, editor...)
-typedef std::function<bool(const std::string &, UI *, Editor *)> Command;
+// refresh(argument, const Parser*, UI, editor...)
+class Parser;
+typedef std::function<bool(const std::string &, Parser*, UI *, Editor *)> Command;
 typedef class Parser {
     std::map<std::string, Command> cmd;
     Command default_command;
 
    public:
     Parser() {}
-    bool execute(const std::string &command, UI *ui, Editor *editor) const {
+    bool execute(const std::string &command, UI *ui, Editor *editor) {
         size_t idx = command.find_first_of(' ');
         std::string name, arg;
         if (idx == std::string::npos) {
@@ -25,14 +26,17 @@ typedef class Parser {
             arg = command.substr(name.length() + 1);
         }
         if (cmd.find(name) != cmd.cend() && cmd.at(name)) {
-            return cmd.at(name)(arg, ui, editor);
+            return cmd.at(name)(arg, this, ui, editor);
         }
         if (default_command)
-            return default_command(command, ui, editor);
+            return default_command(command, this, ui, editor);
         else
             return true;
     }
     void set_default(const Command &fn) { default_command = fn; }
     void set(const std::string &name, const Command &fn) { cmd[name] = fn; }
+    void remove(const std::string &name) {
+        cmd.erase(name);
+    }
 } Parser;
 #endif
